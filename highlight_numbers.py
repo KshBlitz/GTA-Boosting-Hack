@@ -3,12 +3,11 @@ import numpy as np
 import pyautogui
 import pytesseract
 from time import sleep
+import tkinter as tk
+from tkinter import simpledialog
 
 # Tesseract OCR path configuration if needed
 pytesseract.pytesseract.tesseract_cmd = r'C:\Users\mahaj\tesseract.exe'
-
-# List of specific numbers to find
-target_numbers = ["12", "34", "56"]  # Add your specific numbers here
 
 # Function to capture the screen
 def capture_screen():
@@ -16,6 +15,15 @@ def capture_screen():
     frame = np.array(screenshot)
     frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
     return frame
+
+# Function to crop the frame to the lower 60% of the screen and central 50% in width
+def crop_focus_area(frame):
+    height, width, _ = frame.shape
+    start_x = int(width * 0.25)
+    end_x = int(width * 0.75)
+    start_y = int(height * 0.4)
+    end_y = height
+    return frame[start_y:end_y, start_x:end_x]
 
 # Function to find and highlight specific numbers in the frame
 def find_numbers(frame, target_numbers):
@@ -36,13 +44,42 @@ def find_numbers(frame, target_numbers):
 
     return frame
 
+# Function to take 6 two-digit numbers input from user using tkinter
+def get_user_numbers():
+    root = tk.Tk()
+    root.withdraw()  # Hide the main window
+
+    while True:
+        user_input = simpledialog.askstring("Input", "Enter 6 two-digit numbers separated by space:")
+        if user_input:
+            numbers = user_input.split()
+            if len(numbers) == 6 and all(num.isdigit() and len(num) == 2 for num in numbers):
+                root.destroy()
+                return numbers
+            else:
+                tk.messagebox.showerror("Invalid input", "Please enter exactly 6 two-digit numbers.")
+        else:
+            tk.messagebox.showerror("Invalid input", "Input cannot be empty.")
+
+# Main code
+target_numbers = get_user_numbers()
+print("Target numbers:", target_numbers)
+
 while True:
     frame = capture_screen()
-    highlighted_frame = find_numbers(frame, target_numbers)
+    focused_frame = crop_focus_area(frame)
+    highlighted_frame = find_numbers(focused_frame, target_numbers)
     cv2.imshow('Number Finder', highlighted_frame)
     
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    # Wait for a key press and handle events
+    key = cv2.waitKey(1) & 0xFF
+    if key == ord('q'):
         break
-    sleep(0.1)  # Adjust the delay to match the refresh rate of the numbers on your screen
+    elif key == ord('p'):  # Example: Pause on 'p' key press
+        cv2.waitKey(-1)  # Wait indefinitely until a key is pressed
+    elif key == ord('r'):  # Example: Resume on 'r' key press
+        continue  # Resume processing
+    
+    sleep(0.02)  # Adjust delay for smoother display updates
 
 cv2.destroyAllWindows()
